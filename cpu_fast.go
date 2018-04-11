@@ -16,7 +16,7 @@ type fast struct {
 
 	// https://hashrocket.com/blog/posts/switch-vs-map-which-is-the-better-way-to-branch-in-go
 	//ops     map[Mnemonic]func(uint16)
-	ops     [Mnemonics]func(uint16)
+	ops     [mnemonics]func(uint16)
 	monitor Monitor
 
 	interrupt   Interrupt
@@ -48,7 +48,7 @@ func New(model Model, bus AddressBus) CPU {
 		cpu.ram = NewRAM(cpu.ramSize)
 	}
 
-	cpu.ops = [Mnemonics]func(uint16){
+	cpu.ops = [mnemonics]func(uint16){
 		cpu.adc,
 		cpu.and,
 		cpu.asl,

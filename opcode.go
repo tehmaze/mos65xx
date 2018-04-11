@@ -3,7 +3,7 @@ package mos65xx
 // Mnemonic is an instruction
 type Mnemonic uint8
 
-// Mnemonics
+// mnemonics
 const (
 	ADC Mnemonic = iota
 	AND
@@ -80,10 +80,10 @@ const (
 	SHY
 	LAS
 	AXS
-	Mnemonics // For counting
+	mnemonics // For counting
 )
 
-var mnemonicName = [Mnemonics]string{
+var mnemonicName = [mnemonics]string{
 	"ADC", "AND", "ASL", "BCC", "BCS", "BEQ", "BIT", "BMI", "BNE", "BPL",
 	"BRK", "BVC", "BVS", "CLC", "CLD", "CLI", "CLV", "CMP", "CPX", "CPY",
 	"DEC", "DEX", "DEY", "EOR", "INC", "INX", "INY", "JMP", "JSR", "LDA",
