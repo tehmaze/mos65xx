@@ -9,8 +9,11 @@ import (
 
 // Instruction formats
 const (
-	FormatDefault       = `{{printf "%07d %04X %02X %02X %02X %02X:%s %02X %02X:%s %-7s %-9s %s" .C .PC .A .X .Y .P .PS .S .I .M .Operand .Fetch .Store}}`
-	FormatNintendulator = `{{.PC}} {{printf "%-9s" .RawX}} {{.Mnemonic}} {{printf "%-27s" .Operand}}  A:{{.A}} X:{{.X}} Y:{{.Y}} P:{{.P}} SP:{{.S}}`
+	// FormatDefault resembles neskell's output format
+	FormatDefault = `{{printf "%07d %04X %02X %02X %02X %02X:%s %02X %02X:%s %-7s %-9s %s" .C .PC .A .X .Y .P .PS .S .I .M .Operand .Fetch .Store}}`
+
+	// FormatNintendulator resembles nintendulator's output format
+	FormatNintendulator = `{{printf "%04X %-9s %s %-27s A:%02X X:%02X Y:%02X P:%02X SP:%02x" .PC .RawX .Mnemonic .Operand .A .X .Y .P .S}}`
 )
 
 var (
@@ -42,7 +45,7 @@ type Instruction struct {
 	Raw []byte
 }
 
-// Addr is the operand address
+// Addr is the operand address for the current instruction.
 func (in Instruction) Addr(cpu CPU) (addr uint16) {
 	switch in.AddressMode {
 	case Immediate:
@@ -82,14 +85,13 @@ func (in Instruction) Addr(cpu CPU) (addr uint16) {
 		)
 		addr = (hi << 8) | lo
 		addr += uint16(in.Registers.Y)
-
 	default:
 	}
 	return
 }
 
-// Fetches renders the fetch operations
-func (in Instruction) Fetches(cpu CPU) (out string) {
+// fetches renders the fetch operations
+func (in Instruction) fetches(cpu CPU) (out string) {
 	out = "-"
 	switch in.Mnemonic {
 	case LDA, LDX, LDY, BIT, AND, EOR, ORA, ASL, LSR, ROL, ROR, ADC, SBC, INC, DEC, CMP, CPX, CPY:
@@ -112,8 +114,8 @@ func (in Instruction) Fetches(cpu CPU) (out string) {
 	return
 }
 
-// Stores renders the store operations
-func (in Instruction) Stores(cpu CPU) (out string) {
+// stores renders the store operations
+func (in Instruction) stores(cpu CPU) (out string) {
 	var s []string
 	switch in.Mnemonic {
 	case LDA, LDX, LDY:
@@ -464,7 +466,7 @@ func (in Instruction) Stores(cpu CPU) (out string) {
 }
 
 // Operand formats the instruction's mnemonic arguments
-func (in Instruction) Operand(cpu CPU) (out string) {
+func (in Instruction) operand(cpu CPU) (out string) {
 	switch in.AddressMode {
 	case Accumulator:
 		out = "A"
@@ -527,11 +529,11 @@ func (in Instruction) Operand(cpu CPU) (out string) {
 	return
 }
 
-// Format returns a formatted string based on the InstructionFormat template
-// for the referenced CPU.
-func (in Instruction) Format(cpu CPU) string {
+// Format returns a formatted string based on the format template for the
+// referenced CPU.
+func (in Instruction) Format(format string, cpu CPU) string {
 	var (
-		t = template.Must(template.New("instruction").Parse(InstructionFormat))
+		t = template.Must(template.New("instruction").Parse(format))
 		b = new(bytes.Buffer)
 		d = map[string]interface{}{
 			"B":       in.AddressBus,
@@ -549,9 +551,9 @@ func (in Instruction) Format(cpu CPU) string {
 			"Raw":     in.Raw,
 			"I":       in.Raw[0],
 			"RawX":    padX(in.Raw),
-			"Operand": in.Operand(cpu),
-			"Fetch":   in.Fetches(cpu),
-			"Store":   in.Stores(cpu),
+			"Operand": in.operand(cpu),
+			"Fetch":   in.fetches(cpu),
+			"Store":   in.stores(cpu),
 		}
 	)
 	if err := t.Execute(b, d); err != nil {
@@ -592,6 +594,6 @@ type InstructionPrinter func(string)
 
 // BeforeExecute triggers the printer function.
 func (m InstructionPrinter) BeforeExecute(cpu CPU, in Instruction) bool {
-	m(in.Format(cpu))
+	m(in.Format(InstructionFormat, cpu))
 	return true
 }
