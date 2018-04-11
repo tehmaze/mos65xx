@@ -478,13 +478,6 @@ func (in Instruction) operand(cpu CPU) (out string) {
 	case AbsoluteY:
 		out = fmt.Sprintf("$%04X,Y", FetchWord(in.CPU, in.Registers.PC+1))
 	case Relative:
-		/*
-			pos := in.Registers.PC + uint16(in.CPU.Fetch(in.Registers.PC+1)) + 2
-			if in.CPU.Fetch(in.Registers.PC+1)&0x80 == 0x80 {
-				pos -= 0x0100
-			}
-			out = fmt.Sprintf("$%04X", pos)
-		*/
 		out = fmt.Sprintf("$%02X", in.CPU.Fetch(in.Registers.PC+1))
 	case Indirect:
 		var (
@@ -492,31 +485,10 @@ func (in Instruction) operand(cpu CPU) (out string) {
 			hi   = uint16(in.CPU.Fetch(in.Registers.PC + 2))
 			addr = (hi << 8) | lo
 		)
-		// out = fmt.Sprintf("($%04X) = %04X", addr, FetchWord(in, addr))
 		out = fmt.Sprintf("($%04X)", addr)
 	case IndexedIndirect:
-		var (
-			addr = uint16(in.CPU.Fetch(in.Registers.PC+1) + in.Registers.X)
-			lo   = uint16(in.CPU.Fetch((addr)))
-			hi   = uint16(in.CPU.Fetch((addr + 1) & 0x00ff))
-		)
-		addr = (hi << 8) | lo
-		/*
-			out = fmt.Sprintf("($%02X,X) @ %02X = %04X",
-				in.CPU.Fetch(in.Registers.PC+1), in.CPU.Fetch(in.Registers.PC+1)+in.Registers.X, addr)
-		*/
 		out = fmt.Sprintf("($%02X,X)", in.CPU.Fetch(in.Registers.PC+1))
 	case IndirectIndexed:
-		var (
-			addr = uint16(in.CPU.Fetch(in.Registers.PC + 1))
-			lo   = uint16(in.CPU.Fetch((addr)))
-			hi   = uint16(in.CPU.Fetch((addr + 1) & 0x00ff))
-		)
-		addr = ((hi << 8) | lo)
-		/*
-			        out = fmt.Sprintf("($%02X),Y = %04X @ %04X", in.CPU.Fetch(in.Registers.PC+1),
-						addr, addr+uint16(in.Registers.Y))
-		*/
 		out = fmt.Sprintf("($%02X),Y", in.CPU.Fetch(in.Registers.PC+1))
 	case ZeroPage:
 		out = fmt.Sprintf("$%02X", in.CPU.Fetch(in.Registers.PC+1))

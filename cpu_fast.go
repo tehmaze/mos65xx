@@ -167,7 +167,7 @@ func (cpu *fast) ReadAt(p []byte, offs int64) (n int, err error) {
 				m     int
 			)
 			if !ok {
-				r = memory.ReaderAt{cpu.bus}
+				r = memory.ReaderAt{Memory: cpu.bus}
 			}
 			if m, err = r.ReadAt(p[n:], offs+int64(n)); err == nil {
 				n += m

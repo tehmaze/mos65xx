@@ -68,26 +68,10 @@ func setFlag(mask, flag uint8, set bool) uint8 {
 	return mask & ^flag
 }
 
-func (reg *Registers) setZ(value uint8) {
-	reg.P = setFlag(reg.P, Z, value == 0x00)
-}
-
-func (reg *Registers) setV(value uint8) {
-	reg.P = setFlag(reg.P, V, value&0x40 != 0x00)
-}
-
-func (reg *Registers) setN(value uint8) {
-	reg.P = setFlag(reg.P, N, value&0x80 != 0x00)
-}
-
 // setZN sets the Z and N flags based on the value
 func (reg *Registers) setZN(value uint8) {
 	reg.P = setFlag(reg.P, Z, value == 0x00)
 	reg.P = setFlag(reg.P, N, value&0x80 != 0x00)
-}
-
-func (reg *Registers) setBorrow(value uint16) {
-	reg.P = setFlag(reg.P, C, value < 0x100)
 }
 
 // cmp compares two values and updates the Z, N and C flags accordingly
@@ -124,18 +108,6 @@ const (
 	U                   // Unused
 	V                   // Overflow, 1 = true
 	N                   // Negative, 1 = true
-)
-
-// Logical shift right for the processor state register flags
-const (
-	clsr = iota
-	zlsr
-	ilsr
-	dlsr
-	blsr
-	_
-	vlsr
-	nlsr
 )
 
 // Interrupt type
