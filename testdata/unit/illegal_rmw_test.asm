@@ -1,0 +1,583 @@
+
+; Test all illegal RMW opcodes (DCP,ISC,RLA,RRA,SLO,SRE) in all of their
+; addressing modes (6 * 7 = 42). Test ISC and RRA in decimal mode as well.
+;
+; Expected Result: SP = $81
+;
+; After the test the stack should look like this:
+;
+;      0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
+; 0180       00 34 0F 4C B5 D5 4E 35 7D 7B B4 8D 04 35
+; 0190 0D 50 B4 A0 76 B5 9B 00 B5 BF 32 B5 BB 3A 35 3B
+; 01A0 EC B5 FE 22 B5 B3 42 B5 F2 BA B5 FF 80 B5 80 CC
+; 01B0 75 66 EF 35 7B 78 35 6A 9D B4 D7 79 35 59 11 34
+; 01C0 35 01 34 01 33 35 11 3B 35 33 ED B5 E4 21 37 00
+; 01D0 42 35 40 43 34 01 00 B5 FE 9A B4 FE 35 B4 97 F1
+; 01E0 B4 FE 3B B4 FE F3 B4 FC 38 B4 FF FF 37 FF 98 35
+; 01F0 99 33 37 33 EF 35 F0 39 35 3A F1 B4 F0 36 35 37
+
+; DCP - Combined DEC + CMP
+; ------------------------
+
+LDX #$FF
+TXS
+
+LDA #$37
+STA $00
+;DCP $00
+ DCB $C7
+ DCB $00
+
+PHA
+PHP
+LDA $00
+PHA
+
+LDA #$F2
+STA $01
+LDX #$01
+LDA #$F0
+;DCP $00,X
+ DCB $D7
+ DCB $00
+
+PHA
+PHP
+LDA $01
+PHA
+
+LDA #$3A
+STA $02
+;DCP $0002
+ DCB $CF
+ DCB $02
+ DCB $00
+
+PHA
+PHP
+LDA $02
+PHA
+
+LDA #$F0
+STA $0303
+LDX #$03
+;DCP $0300,X
+ DCB $DF
+ DCB $00
+ DCB $03
+
+PHA
+PHP
+LDA $0303
+PHA
+
+LDA #$34
+STA $0404
+LDY #$04
+LDA #$33
+;DCP $0400,Y
+ DCB $DB
+ DCB $00
+ DCB $04
+
+PHA
+PHP
+LDA $0404
+PHA
+
+LDA #$05
+STA $03
+LDA #$00
+STA $04
+LDA #$99
+STA $05
+LDX #$02
+;DCP ($01,X)
+ DCB $C3
+ DCB $01
+
+PHA
+PHP
+LDA $05
+PHA
+
+LDY #$01
+LDA #$FF
+;DCP ($03),Y
+ DCB $D3
+ DCB $03
+
+PHA
+PHP
+LDA $06
+PHA
+
+; ISC - Combined INC + SBC
+; ------------------------
+
+LDA #$37
+STA $00
+;ISC $00
+ DCB $E7
+ DCB $00
+
+PHA
+PHP
+LDA $00
+PHA
+
+LDA #$F2
+STA $01
+LDX #$01
+LDA #$F0
+;ISC $00,X
+ DCB $F7
+ DCB $00
+
+PHA
+PHP
+LDA $01
+PHA
+
+LDA #$3A
+STA $02
+;ISC $0002
+ DCB $EF
+ DCB $02
+ DCB $00
+
+PHA
+PHP
+LDA $02
+PHA
+
+LDA #$F0
+STA $0303
+LDX #$03
+;ISC $0300,X
+ DCB $FF
+ DCB $00
+ DCB $03
+
+PHA
+PHP
+LDA $0303
+PHA
+
+LDA #$34
+STA $0404
+LDY #$04
+LDA #$33
+SED
+;ISC $0400,Y
+ DCB $FB
+ DCB $00
+ DCB $04
+CLD
+
+PHA
+PHP
+LDA $0404
+PHA
+
+LDA #$05
+STA $03
+LDA #$00
+STA $04
+LDA #$99
+STA $05
+LDX #$02
+;ISC ($01,X)
+ DCB $E3
+ DCB $01
+
+PHA
+PHP
+LDA $05
+PHA
+
+LDY #$01
+LDA #$FF
+;ISC ($03),Y
+ DCB $F3
+ DCB $03
+
+PHA
+PHP
+LDA $06
+PHA
+
+; RLA - Combined ROL + AND
+; ------------------------
+
+LDA #$21
+STA $00
+;RLA $00
+DCB $27
+DCB $00
+
+PHA
+PHP
+LDA $00
+PHA
+
+LDA #$A1
+STA $01
+LDX #$01
+LDA #$F0
+;RLA $00,X
+ DCB $37
+ DCB $00
+
+PHA
+PHP
+LDA $01
+PHA
+
+LDA #$90
+STA $02
+;RLA $0002
+ DCB $2F
+ DCB $02
+ DCB $00
+
+PHA
+PHP
+LDA $02
+PHA
+
+LDA #$F6
+STA $0303
+LDX #$03
+;RLA $0300,X
+ DCB $3F
+ DCB $00
+ DCB $03
+
+PHA
+PHP
+LDA $0303
+PHA
+
+LDA #$9D
+STA $0404
+LDY #$04
+LDA #$33
+;RLA $0400,Y
+ DCB $3B
+ DCB $00
+ DCB $04
+
+PHA
+PHP
+LDA $0404
+PHA
+
+LDA #$05
+STA $03
+LDA #$00
+STA $04
+LDA #$99
+STA $05
+LDX #$02
+;RLA ($01,X)
+ DCB $23
+ DCB $01
+
+PHA
+PHP
+LDA $05
+PHA
+
+LDY #$01
+LDA #$BF
+;RLA ($03),Y
+ DCB $33
+ DCB $03
+
+PHA
+PHP
+LDA $06
+PHA
+
+; RRA - Combined ROR + ADC
+; ------------------------
+
+LDA #$23
+STA $00
+;RRA $00
+ DCB $67
+ DCB $00
+
+PHA
+PHP
+LDA $00
+PHA
+
+LDA #$F2
+STA $01
+LDX #$01
+LDA #$E0
+;RRA $00,X
+ DCB $77
+ DCB $00
+
+PHA
+PHP
+LDA $01
+PHA
+
+LDA #$3A
+STA $02
+;RRA $0002
+ DCB $6F
+ DCB $02
+ DCB $00
+
+PHA
+PHP
+LDA $02
+PHA
+
+LDA #$F1
+STA $0303
+LDX #$03
+;RRA $0300,X
+ DCB $7F
+ DCB $00
+ DCB $03
+
+PHA
+PHP
+LDA $0303
+PHA
+
+LDA #$DF
+STA $0404
+LDY #$04
+LDA #$25
+SED
+;RRA $0400,Y
+ DCB $7B
+ DCB $00
+ DCB $04
+CLD
+
+PHA
+PHP
+LDA $0404
+PHA
+
+LDA #$05
+STA $03
+LDA #$00
+STA $04
+LDA #$99
+STA $05
+LDX #$02
+;RRA ($01,X)
+ DCB $63
+ DCB $01
+
+PHA
+PHP
+LDA $05
+PHA
+
+LDY #$01
+LDA #$FF
+;RRA ($03),Y
+ DCB $73
+ DCB $03
+
+PHA
+PHP
+LDA $06
+PHA
+
+; SLO - Combined ASL + ORA
+; ------------------------
+ 
+LDA #$DD
+STA $00
+;SLO $00
+ DCB $07
+ DCB $00
+
+PHA
+PHP
+LDA $00
+PHA
+
+LDA #$A1
+STA $01
+LDX #$01
+LDA #$F0
+;SLO $00,X
+ DCB $17
+ DCB $00
+
+PHA
+PHP
+LDA $01
+PHA
+
+LDA #$91
+STA $02
+;SLO $0002
+ DCB $0F
+ DCB $02
+ DCB $00
+
+PHA
+PHP
+LDA $02
+PHA
+
+LDA #$F6
+STA $0303
+LDX #$02
+;SLO $0301,X
+ DCB $1F
+ DCB $01
+ DCB $03
+
+PHA
+PHP
+LDA $0303
+PHA
+
+LDA #$9D
+STA $0404
+LDY #$04
+LDA #$33
+;SLO $0400,Y
+ DCB $1B
+ DCB $00
+ DCB $04
+
+PHA
+PHP
+LDA $0404
+PHA
+
+LDA #$05
+STA $03
+LDA #$00
+STA $04
+LDA #$99
+STA $05
+LDX #$02
+;SLO ($01,X)
+ DCB $03
+ DCB $01
+
+PHA
+PHP
+LDA $05
+PHA
+
+LDY #$01
+LDA #$BF
+;SLO ($03),Y
+ DCB $13
+ DCB $03
+
+PHA
+PHP
+LDA $06
+PHA
+
+; SRE - Combined LSR + EOR
+; ------------------------
+
+LDA #$ED
+STA $00
+;SRE $00
+ DCB $47
+ DCB $00
+
+PHA
+PHP
+LDA $00
+PHA
+
+LDA #$A0
+STA $01
+LDX #$01
+LDA #$F0
+;SRE $00,X
+ DCB $57
+ DCB $00
+
+PHA
+PHP
+LDA $01
+PHA
+
+LDA #$09
+STA $02
+;SRE $0002
+ DCB $4F
+ DCB $02
+ DCB $00
+
+PHA
+PHP
+LDA $02
+PHA
+
+LDA #$F6
+STA $0303
+LDX #$02
+;SRE $0301,X
+ DCB $5F
+ DCB $01
+ DCB $03
+
+PHA
+PHP
+LDA $0303
+PHA
+
+LDA #$9D
+STA $0404
+LDY #$04
+LDA #$33
+;SRE $0400,Y
+ DCB $5B
+ DCB $00
+ DCB $04
+
+PHA
+PHP
+LDA $0404
+PHA
+
+LDA #$05
+STA $03
+LDA #$00
+STA $04
+LDA #$99
+STA $05
+LDX #$02
+;SRE ($01,X)
+ DCB $43
+ DCB $01
+
+PHA
+PHP
+LDA $05
+PHA
+
+LDY #$02
+LDA #$0F
+;SRE ($02),Y
+ DCB $53
+ DCB $02
+
+PHA
+PHP
+LDA $06
+PHA
+
