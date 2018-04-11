@@ -100,6 +100,7 @@ func (mode AddressMode) String() string {
 	return "Invalid"
 }
 
+// AddressBus provides addressable memory for the CPU
 type AddressBus interface {
 	// Fetch data from the bus
 	Fetch(addr uint16) (value uint8)
@@ -124,11 +125,16 @@ func (b addressBusMasked) Store(addr uint16, value uint8)  { b.bus.Store(addr&b.
 // RAM is Random-Access Memory
 type RAM []byte
 
+// NewRAM creates new RAM of the give size. The memory is zeroed with 0xff.
 func NewRAM(size uint32) *RAM {
 	b := make(RAM, size)
+	b.Reset()
 	return &b
 }
 
+// ReadAt reads a portion of the memory in buffer p. If buffer p is longer
+// than our memory at offset off; the output is limited to the remainder. If
+// off if beyond our memory size, io.EOF is returned.
 func (b RAM) ReadAt(p []byte, off int64) (n int, err error) {
 	if off > int64(len(b)) {
 		err = io.EOF

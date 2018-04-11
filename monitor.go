@@ -9,7 +9,7 @@ import (
 
 // Instruction formats
 const (
-	FormatDefault       = `{{printf "%07d %04X %02X %02X %02X %02X:%s %02X %02X:%s %-7s %-9s %s" .C .PC .A .X .Y .P .PS .S .I .M .Operand .Load .Store}}`
+	FormatDefault       = `{{printf "%07d %04X %02X %02X %02X %02X:%s %02X %02X:%s %-7s %-9s %s" .C .PC .A .X .Y .P .PS .S .I .M .Operand .Fetch .Store}}`
 	FormatNintendulator = `{{.PC}} {{printf "%-9s" .RawX}} {{.Mnemonic}} {{printf "%-27s" .Operand}}  A:{{.A}} X:{{.X}} Y:{{.Y}} P:{{.P}} SP:{{.S}}`
 )
 
@@ -88,8 +88,8 @@ func (in Instruction) Addr(cpu CPU) (addr uint16) {
 	return
 }
 
-// Loads
-func (in Instruction) Loads(cpu CPU) (out string) {
+// Fetches renders the fetch operations
+func (in Instruction) Fetches(cpu CPU) (out string) {
 	out = "-"
 	switch in.Mnemonic {
 	case LDA, LDX, LDY, BIT, AND, EOR, ORA, ASL, LSR, ROL, ROR, ADC, SBC, INC, DEC, CMP, CPX, CPY:
@@ -112,7 +112,7 @@ func (in Instruction) Loads(cpu CPU) (out string) {
 	return
 }
 
-// Stores
+// Stores renders the store operations
 func (in Instruction) Stores(cpu CPU) (out string) {
 	var s []string
 	switch in.Mnemonic {
@@ -527,6 +527,8 @@ func (in Instruction) Operand(cpu CPU) (out string) {
 	return
 }
 
+// Format returns a formatted string based on the InstructionFormat template
+// for the referenced CPU.
 func (in Instruction) Format(cpu CPU) string {
 	var (
 		t = template.Must(template.New("instruction").Parse(InstructionFormat))
@@ -548,7 +550,7 @@ func (in Instruction) Format(cpu CPU) string {
 			"I":       in.Raw[0],
 			"RawX":    padX(in.Raw),
 			"Operand": in.Operand(cpu),
-			"Load":    in.Loads(cpu),
+			"Fetch":   in.Fetches(cpu),
 			"Store":   in.Stores(cpu),
 		}
 	)
@@ -585,8 +587,10 @@ type Monitor interface {
 	BeforeExecute(CPU, Instruction) bool
 }
 
+// InstructionPrinter will output a formatted string before execution.
 type InstructionPrinter func(string)
 
+// BeforeExecute triggers the printer function.
 func (m InstructionPrinter) BeforeExecute(cpu CPU, in Instruction) bool {
 	m(in.Format(cpu))
 	return true

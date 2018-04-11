@@ -37,13 +37,16 @@ type CPU interface {
 	Attach(Monitor)
 }
 
-// CPUWithTicks is a CPU implementation optimized for cycle accuracy
+/*
+// TODO: Not implemented
+// Accurate is a CPU implementation optimized for cycle accuracy
 type Accurate interface {
 	CPU
 
 	// Tick a single cycle
 	Tick()
 }
+*/
 
 // Registers are the CPU registers
 type Registers struct {
