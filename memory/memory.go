@@ -1,3 +1,4 @@
+// Package memory implements access to 16-bit address space.
 package memory
 
 import "io/ioutil"

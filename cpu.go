@@ -1,3 +1,4 @@
+// Package mos65xx implements MOS Technology 65xx CPU emulation.
 package mos65xx
 
 import "fmt"
