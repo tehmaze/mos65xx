@@ -29,9 +29,6 @@ type Instruction struct {
 	// Cycles elapsed
 	Cycles int
 
-	// AddressBus (as observed by the CPU)
-	AddressBus
-
 	// Mnemonic is the current operation
 	Mnemonic
 
@@ -46,42 +43,42 @@ type Instruction struct {
 }
 
 // Addr is the operand address for the current instruction.
-func (in Instruction) Addr(cpu CPU) (addr uint16) {
+func (in Instruction) Addr() (addr uint16) {
 	switch in.AddressMode {
 	case Immediate:
 		addr = in.Registers.PC + 1
 	case ZeroPage:
-		addr = uint16(cpu.Fetch(in.Registers.PC + 1))
+		addr = uint16(in.CPU.Fetch(in.Registers.PC + 1))
 	case ZeroPageX:
-		addr = uint16(cpu.Fetch(in.Registers.PC+1) + in.Registers.X)
+		addr = uint16(in.CPU.Fetch(in.Registers.PC+1) + in.Registers.X)
 	case ZeroPageY:
-		addr = uint16(cpu.Fetch(in.Registers.PC+1) + in.Registers.Y)
+		addr = uint16(in.CPU.Fetch(in.Registers.PC+1) + in.Registers.Y)
 	case Relative:
-		off := uint16(cpu.Fetch(in.Registers.PC + 1))
+		off := uint16(in.CPU.Fetch(in.Registers.PC + 1))
 		addr = in.Registers.PC + off + 2
 		if off&0x80 == 0x80 {
 			addr -= 0x0100
 		}
 	case Absolute:
-		addr = FetchWord(cpu, in.Registers.PC+1)
+		addr = FetchWord(in.CPU, in.Registers.PC+1)
 	case AbsoluteX:
-		addr = FetchWord(cpu, in.Registers.PC+1) + uint16(in.Registers.X)
+		addr = FetchWord(in.CPU, in.Registers.PC+1) + uint16(in.Registers.X)
 	case AbsoluteY:
-		addr = FetchWord(cpu, in.Registers.PC+1) + uint16(in.Registers.Y)
+		addr = FetchWord(in.CPU, in.Registers.PC+1) + uint16(in.Registers.Y)
 	case Indirect:
-		addr = FetchWord(cpu, in.Registers.PC+1)
+		addr = FetchWord(in.CPU, in.Registers.PC+1)
 	case IndexedIndirect:
-		addr = uint16(cpu.Fetch(in.Registers.PC+1) + in.Registers.X)
+		addr = uint16(in.CPU.Fetch(in.Registers.PC+1) + in.Registers.X)
 		var (
-			lo = uint16(cpu.Fetch((addr)))
-			hi = uint16(cpu.Fetch((addr + 1) & 0x00ff))
+			lo = uint16(in.CPU.Fetch((addr)))
+			hi = uint16(in.CPU.Fetch((addr + 1) & 0x00ff))
 		)
 		addr = (hi << 8) | lo
 	case IndirectIndexed:
-		addr = uint16(cpu.Fetch(in.Registers.PC + 1))
+		addr = uint16(in.CPU.Fetch(in.Registers.PC + 1))
 		var (
-			lo = uint16(cpu.Fetch((addr)))
-			hi = uint16(cpu.Fetch((addr + 1) & 0x00ff))
+			lo = uint16(in.CPU.Fetch((addr)))
+			hi = uint16(in.CPU.Fetch((addr + 1) & 0x00ff))
 		)
 		addr = (hi << 8) | lo
 		addr += uint16(in.Registers.Y)
@@ -98,30 +95,32 @@ func (in Instruction) fetches(cpu CPU) (out string) {
 		switch in.AddressMode {
 		case Accumulator, Implied, Immediate:
 		default:
-			addr := in.Addr(cpu)
-			out = fmt.Sprintf("%04X→%02X", addr, in.Fetch(addr))
+			addr := in.Addr()
+			out = fmt.Sprintf("%04X→%02X", addr, in.CPU.Fetch(addr))
 		}
 	case JMP:
 		switch in.AddressMode {
 		case Indirect:
-			addr := in.Addr(cpu)
-			out = fmt.Sprintf("%04X→%04X", addr, FetchWord(cpu, addr))
+			addr := in.Addr()
+			out = fmt.Sprintf("%04X→%04X", addr, FetchWord(in.CPU, addr))
 		case IndirectIndexed, IndexedIndirect:
-			addr := in.Addr(cpu)
-			out = fmt.Sprintf("%04X→%02X", addr, in.Fetch(addr))
+			addr := in.Addr()
+			out = fmt.Sprintf("%04X→%02X", addr, in.CPU.Fetch(addr))
 		}
 	}
 	return
 }
 
 // stores renders the store operations
+// TODO: this reimplements a lot of the instruction executions; can we do it
+//       more optimal?
 func (in Instruction) stores(cpu CPU) (out string) {
 	var s []string
 	switch in.Mnemonic {
 	case LDA, LDX, LDY:
 		var (
 			p = in.Registers.P
-			v = cpu.Fetch(in.Addr(cpu))
+			v = in.CPU.Fetch(in.Addr())
 			r rune
 		)
 		if v == 0 {
@@ -146,7 +145,7 @@ func (in Instruction) stores(cpu CPU) (out string) {
 		s = append(s, fmt.Sprintf("%02X→%c", v, r))
 	case STA, STX, STY:
 		var (
-			a = in.Addr(cpu)
+			a = in.Addr()
 			v uint8
 		)
 		switch in.Mnemonic {
@@ -197,7 +196,7 @@ func (in Instruction) stores(cpu CPU) (out string) {
 		s = append(s, fmt.Sprintf("%02X→%s", a, r))
 	case BIT:
 		var (
-			v = in.Fetch(in.Addr(cpu))
+			v = in.CPU.Fetch(in.Addr())
 			p = in.Registers.P
 		)
 		if v&0x40 == 0x40 {
@@ -220,16 +219,16 @@ func (in Instruction) stores(cpu CPU) (out string) {
 		s = append(s, fmt.Sprintf("%02X→%04X", (in.Registers.PC+2)>>8, 0x0100|uint16(in.Registers.S)))
 		s = append(s, fmt.Sprintf("%02X→%04X", (in.Registers.PC+2)&0xff, 0x0100|uint16(in.Registers.S-1)))
 		s = append(s, fmt.Sprintf("%02X→SP", in.Registers.S-2))
-		s = append(s, fmt.Sprintf("%04X→PC", in.Addr(cpu)))
+		s = append(s, fmt.Sprintf("%04X→PC", in.Addr()))
 	case RTI:
 		s = append(s, fmt.Sprintf("%02X→SP", in.Registers.S+1))
-		s = append(s, fmt.Sprintf("%02X→SR", (cpu.Fetch(0x0100|uint16(in.Registers.S+1))&0xef)|0x20))
-		s = append(s, fmt.Sprintf("%04X→PC", FetchWord(cpu, 0x0100|uint16(in.Registers.S+2))+1))
+		s = append(s, fmt.Sprintf("%02X→SR", (in.CPU.Fetch(0x0100|uint16(in.Registers.S+1))&0xef)|0x20))
+		s = append(s, fmt.Sprintf("%04X→PC", FetchWord(in.CPU, 0x0100|uint16(in.Registers.S+2))+1))
 		s = append(s, fmt.Sprintf("%02X→SP", in.Registers.S+3))
 
 	case RTS:
 		s = append(s, fmt.Sprintf("%02X→SP", in.Registers.S+2))
-		s = append(s, fmt.Sprintf("%04X→PC", FetchWord(cpu, 0x0100|uint16(in.Registers.S+1))+1))
+		s = append(s, fmt.Sprintf("%04X→PC", FetchWord(in.CPU, 0x0100|uint16(in.Registers.S+1))+1))
 	case CLC:
 		s = append(s, fmt.Sprintf("%02X→SR", in.Registers.P & ^C))
 	case CLD:
@@ -253,7 +252,7 @@ func (in Instruction) stores(cpu CPU) (out string) {
 	case AND:
 		var (
 			p = in.Registers.P
-			v = cpu.Fetch(in.Addr(cpu))
+			v = in.CPU.Fetch(in.Addr())
 			a = in.Registers.A & v
 		)
 		p = setFlag(p, N, a&0x80 == 0x80)
@@ -263,7 +262,7 @@ func (in Instruction) stores(cpu CPU) (out string) {
 	case EOR:
 		var (
 			p = in.Registers.P
-			v = cpu.Fetch(in.Addr(cpu))
+			v = in.CPU.Fetch(in.Addr())
 			a = in.Registers.A ^ v
 		)
 		p = setFlag(p, N, a&0x80 == 0x80)
@@ -273,7 +272,7 @@ func (in Instruction) stores(cpu CPU) (out string) {
 	case ORA:
 		var (
 			p = in.Registers.P
-			v = cpu.Fetch(in.Addr(cpu))
+			v = in.CPU.Fetch(in.Addr())
 			a = in.Registers.A | v
 		)
 		p = setFlag(p, N, a&0x80 == 0x80)
@@ -292,8 +291,8 @@ func (in Instruction) stores(cpu CPU) (out string) {
 			v = in.Registers.A
 			r = "A"
 		default:
-			t = in.Addr(cpu)
-			v = cpu.Fetch(t)
+			t = in.Addr()
+			v = in.CPU.Fetch(t)
 			r = fmt.Sprintf("%04X", t)
 		}
 		p = setFlag(p, C, v&0x80 == 0x80)
@@ -314,8 +313,8 @@ func (in Instruction) stores(cpu CPU) (out string) {
 			v = in.Registers.A
 			r = "A"
 		default:
-			t = in.Addr(cpu)
-			v = cpu.Fetch(t)
+			t = in.Addr()
+			v = in.CPU.Fetch(t)
 			r = fmt.Sprintf("%04X", t)
 		}
 		p = setFlag(p, C, v&1 == 1)
@@ -336,8 +335,8 @@ func (in Instruction) stores(cpu CPU) (out string) {
 			v = in.Registers.A
 			r = "A"
 		default:
-			t = in.Addr(cpu)
-			v = cpu.Fetch(t)
+			t = in.Addr()
+			v = in.CPU.Fetch(t)
 			r = fmt.Sprintf("%04X", t)
 		}
 		p = setFlag(p, C, v&0x80 == 0x80)
@@ -358,8 +357,8 @@ func (in Instruction) stores(cpu CPU) (out string) {
 			v = in.Registers.A
 			r = "A"
 		default:
-			t = in.Addr(cpu)
-			v = cpu.Fetch(t)
+			t = in.Addr()
+			v = in.CPU.Fetch(t)
 			r = fmt.Sprintf("%04X", t)
 		}
 		p = setFlag(p, C, v&0x01 == 0x01)
@@ -381,8 +380,8 @@ func (in Instruction) stores(cpu CPU) (out string) {
 				v = in.Registers.A - 1
 				r = "A"
 			} else {
-				t = in.Addr(cpu)
-				v = cpu.Fetch(t) - 1
+				t = in.Addr()
+				v = in.CPU.Fetch(t) - 1
 				r = fmt.Sprintf("%04X", t)
 			}
 		case DEX:
@@ -396,8 +395,8 @@ func (in Instruction) stores(cpu CPU) (out string) {
 				v = in.Registers.A + 1
 				r = "A"
 			} else {
-				t = in.Addr(cpu)
-				v = cpu.Fetch(t) + 1
+				t = in.Addr()
+				v = in.CPU.Fetch(t) + 1
 				r = fmt.Sprintf("%04X", t)
 			}
 		case INX:
@@ -414,7 +413,7 @@ func (in Instruction) stores(cpu CPU) (out string) {
 	case PLA:
 		var (
 			p = in.Registers.P
-			v = cpu.Fetch(0x0100 | uint16(in.Registers.S+1))
+			v = in.CPU.Fetch(0x0100 | uint16(in.Registers.S+1))
 		)
 		if v&0x80 == 0x80 {
 			p |= N
@@ -431,14 +430,14 @@ func (in Instruction) stores(cpu CPU) (out string) {
 		s = append(s, fmt.Sprintf("%02X→A", v))
 	case PLP:
 		var (
-			p = (cpu.Fetch(0x0100|uint16(in.Registers.S+1)) & 0xef) | 0x20
+			p = (in.CPU.Fetch(0x0100|uint16(in.Registers.S+1)) & 0xef) | 0x20
 		)
 		s = append(s, fmt.Sprintf("%02X→SP", in.Registers.S+1))
 		s = append(s, fmt.Sprintf("%02X→SR", p))
 	case CMP, CPX, CPY:
 		var (
 			a uint8
-			b = cpu.Fetch(in.Addr(cpu))
+			b = in.CPU.Fetch(in.Addr())
 			p = in.Registers.P
 		)
 		switch in.Mnemonic {
@@ -471,60 +470,60 @@ func (in Instruction) operand(cpu CPU) (out string) {
 	case Accumulator:
 		out = "A"
 	case Immediate:
-		out = fmt.Sprintf("#$%02X", in.Fetch(in.Registers.PC+1))
+		out = fmt.Sprintf("#$%02X", in.CPU.Fetch(in.Registers.PC+1))
 	case Absolute:
-		out = fmt.Sprintf("$%04X", FetchWord(in, in.Registers.PC+1))
+		out = fmt.Sprintf("$%04X", FetchWord(in.CPU, in.Registers.PC+1))
 	case AbsoluteX:
-		out = fmt.Sprintf("$%04X,X", FetchWord(in, in.Registers.PC+1))
+		out = fmt.Sprintf("$%04X,X", FetchWord(in.CPU, in.Registers.PC+1))
 	case AbsoluteY:
-		out = fmt.Sprintf("$%04X,Y", FetchWord(in, in.Registers.PC+1))
+		out = fmt.Sprintf("$%04X,Y", FetchWord(in.CPU, in.Registers.PC+1))
 	case Relative:
 		/*
-			pos := in.Registers.PC + uint16(in.Fetch(in.Registers.PC+1)) + 2
-			if in.Fetch(in.Registers.PC+1)&0x80 == 0x80 {
+			pos := in.Registers.PC + uint16(in.CPU.Fetch(in.Registers.PC+1)) + 2
+			if in.CPU.Fetch(in.Registers.PC+1)&0x80 == 0x80 {
 				pos -= 0x0100
 			}
 			out = fmt.Sprintf("$%04X", pos)
 		*/
-		out = fmt.Sprintf("$%02X", in.Fetch(in.Registers.PC+1))
+		out = fmt.Sprintf("$%02X", in.CPU.Fetch(in.Registers.PC+1))
 	case Indirect:
 		var (
-			lo   = uint16(in.Fetch(in.Registers.PC + 1))
-			hi   = uint16(in.Fetch(in.Registers.PC + 2))
+			lo   = uint16(in.CPU.Fetch(in.Registers.PC + 1))
+			hi   = uint16(in.CPU.Fetch(in.Registers.PC + 2))
 			addr = (hi << 8) | lo
 		)
 		// out = fmt.Sprintf("($%04X) = %04X", addr, FetchWord(in, addr))
 		out = fmt.Sprintf("($%04X)", addr)
 	case IndexedIndirect:
 		var (
-			addr = uint16(in.Fetch(in.Registers.PC+1) + in.Registers.X)
-			lo   = uint16(in.Fetch((addr)))
-			hi   = uint16(in.Fetch((addr + 1) & 0x00ff))
+			addr = uint16(in.CPU.Fetch(in.Registers.PC+1) + in.Registers.X)
+			lo   = uint16(in.CPU.Fetch((addr)))
+			hi   = uint16(in.CPU.Fetch((addr + 1) & 0x00ff))
 		)
 		addr = (hi << 8) | lo
 		/*
 			out = fmt.Sprintf("($%02X,X) @ %02X = %04X",
-				in.Fetch(in.Registers.PC+1), in.Fetch(in.Registers.PC+1)+in.Registers.X, addr)
+				in.CPU.Fetch(in.Registers.PC+1), in.CPU.Fetch(in.Registers.PC+1)+in.Registers.X, addr)
 		*/
-		out = fmt.Sprintf("($%02X,X)", in.Fetch(in.Registers.PC+1))
+		out = fmt.Sprintf("($%02X,X)", in.CPU.Fetch(in.Registers.PC+1))
 	case IndirectIndexed:
 		var (
-			addr = uint16(in.Fetch(in.Registers.PC + 1))
-			lo   = uint16(in.Fetch((addr)))
-			hi   = uint16(in.Fetch((addr + 1) & 0x00ff))
+			addr = uint16(in.CPU.Fetch(in.Registers.PC + 1))
+			lo   = uint16(in.CPU.Fetch((addr)))
+			hi   = uint16(in.CPU.Fetch((addr + 1) & 0x00ff))
 		)
 		addr = ((hi << 8) | lo)
 		/*
-			        out = fmt.Sprintf("($%02X),Y = %04X @ %04X", in.Fetch(in.Registers.PC+1),
+			        out = fmt.Sprintf("($%02X),Y = %04X @ %04X", in.CPU.Fetch(in.Registers.PC+1),
 						addr, addr+uint16(in.Registers.Y))
 		*/
-		out = fmt.Sprintf("($%02X),Y", in.Fetch(in.Registers.PC+1))
+		out = fmt.Sprintf("($%02X),Y", in.CPU.Fetch(in.Registers.PC+1))
 	case ZeroPage:
-		out = fmt.Sprintf("$%02X", in.Fetch(in.Registers.PC+1))
+		out = fmt.Sprintf("$%02X", in.CPU.Fetch(in.Registers.PC+1))
 	case ZeroPageX:
-		out = fmt.Sprintf("$%02X,X", in.Fetch(in.Registers.PC+1))
+		out = fmt.Sprintf("$%02X,X", in.CPU.Fetch(in.Registers.PC+1))
 	case ZeroPageY:
-		out = fmt.Sprintf("$%02X,Y", in.Fetch(in.Registers.PC+1))
+		out = fmt.Sprintf("$%02X,Y", in.CPU.Fetch(in.Registers.PC+1))
 	}
 	return
 }
@@ -536,7 +535,7 @@ func (in Instruction) Format(format string, cpu CPU) string {
 		t = template.Must(template.New("instruction").Parse(format))
 		b = new(bytes.Buffer)
 		d = map[string]interface{}{
-			"B":       in.AddressBus,
+			"B":       in.CPU,
 			"Mode":    in.AddressMode,
 			"C":       in.Cycles,
 			"M":       in.Mnemonic,

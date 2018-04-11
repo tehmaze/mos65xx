@@ -11,8 +11,8 @@ const (
 type Model struct {
 	Name           string
 	Frequency      float64 // Typical clock frequency in Hz
-	ExternalMemory uint32  // External addressable memory size
-	InternalMemory uint32  // Internal RAM size
+	ExternalMemory int     // External addressable memory size
+	InternalMemory int     // Internal RAM size
 	HasBCD         bool    // Decimal mode support
 	HasIRQ         bool    // IRQ support
 	HasNMI         bool    // NMI support

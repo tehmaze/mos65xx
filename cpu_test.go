@@ -9,6 +9,8 @@ import (
 	"os"
 	"runtime"
 	"testing"
+
+	"github.com/tehmaze/mos65xx/memory"
 )
 
 /*
@@ -72,8 +74,6 @@ Pinout differences:
 
 
 
-
-
 .. ahh finally our debugger log is at line 100+
 */
 
@@ -83,7 +83,7 @@ type testBinary struct {
 	Offset, PC uint16
 	S          uint8
 	Stop, Pass *conds
-	Done       func(CPU, *RAM)
+	Done       func(CPU, *memory.RAM)
 	Patch      map[uint16]uint8
 
 	t       *testing.T
@@ -105,7 +105,7 @@ func (test *testBinary) BeforeExecute(cpu CPU, in Instruction) bool {
 		test.monitor.BeforeExecute(cpu, in)
 	}
 	test.last = in
-	if test.done = test.Stop.Cond(test.cpu, in); test.done {
+	if test.done = test.Stop.Cond(in); test.done {
 		return false
 	}
 	return true
@@ -116,7 +116,7 @@ func (test *testBinary) Run(t *testing.T) {
 	//t.Run(test.Name, func(t *testing.T) {
 	test.t = t
 	var (
-		mem      = NewRAM(test.Model.ExternalMemory)
+		mem      = memory.New(test.Model.ExternalMemory)
 		cpu      CPU
 		bin, err = ioutil.ReadFile(test.Name)
 	)
@@ -159,7 +159,7 @@ func (test *testBinary) Run(t *testing.T) {
 		cycles += cpu.Step()
 	}
 
-	pass := test.Pass.Cond(cpu, test.last)
+	pass := test.Pass.Cond(test.last)
 	if testing.Verbose() || !pass {
 		t.Logf("stop reason....: %s", test.Stop.Reason())
 		t.Logf("final cycles...: %d", cycles)
@@ -798,7 +798,7 @@ func testBlargg(t *testing.T, name, value string, cycles int) {
 			condByte{0x6003, 0x61},
 			condCycles{cycles, cycles},
 		}, condString(0x6004, value)...)},
-		Done: func(cpu CPU, mem *RAM) {
+		Done: func(cpu CPU, mem *memory.RAM) {
 			i := bytes.IndexByte((*mem)[0x6004:], 0x00)
 			if i > 0 {
 				t.Logf("test result: %q", (*mem)[0x6004:0x6004+i])

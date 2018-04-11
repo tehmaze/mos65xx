@@ -1,7 +1,7 @@
 package mos65xx
 
 import (
-	"io"
+	"github.com/tehmaze/mos65xx/memory"
 )
 
 // Vectors
@@ -100,87 +100,26 @@ func (mode AddressMode) String() string {
 	return "Invalid"
 }
 
-// AddressBus provides addressable memory for the CPU
-type AddressBus interface {
-	// Fetch data from the bus
-	Fetch(addr uint16) (value uint8)
-
-	// Store data on the bus
-	Store(addr uint16, value uint8)
-
-	// Read a portion of memory from the bus
-	io.ReaderAt
-}
-
-// addressBusMasked is a helper for a CPU with an address bus that supports
-// less than 16-bit addresses
-type addressBusMasked struct {
-	bus  AddressBus
-	mask uint16
-}
-
-func (b addressBusMasked) Fetch(addr uint16) (value uint8) { return b.bus.Fetch(addr & b.mask) }
-func (b addressBusMasked) Store(addr uint16, value uint8)  { b.bus.Store(addr&b.mask, value) }
-
-// RAM is Random-Access Memory
-type RAM []byte
-
-// NewRAM creates new RAM of the give size. The memory is zeroed with 0xff.
-func NewRAM(size uint32) *RAM {
-	b := make(RAM, size)
-	b.Reset()
-	return &b
-}
-
-// ReadAt reads a portion of the memory in buffer p. If buffer p is longer
-// than our memory at offset off; the output is limited to the remainder. If
-// off if beyond our memory size, io.EOF is returned.
-func (b RAM) ReadAt(p []byte, off int64) (n int, err error) {
-	if off > int64(len(b)) {
-		err = io.EOF
-	} else {
-		n = copy(p, b[off:])
-	}
-	return
-}
-
-// Fetch data from RAM
-func (b RAM) Fetch(addr uint16) (value uint8) {
-	return b[addr]
-}
-
-// Store data in RAM
-func (b *RAM) Store(addr uint16, value uint8) {
-	(*b)[addr] = value
-}
-
-// Reset RAM
-func (b *RAM) Reset() {
-	for i, l := 0, len(*b); i < l; i += len(zeros) {
-		copy((*b)[i:], zeros)
-	}
-}
-
-// FetchWord is a helper to fetch a 16-bit word from a bus
-func FetchWord(bus AddressBus, addr uint16) uint16 {
+// FetchWord is a helper to fetch a 16-bit word from memory
+func FetchWord(mem memory.Memory, addr uint16) uint16 {
 	var (
-		lo = uint16(bus.Fetch(addr))
-		hi = uint16(bus.Fetch(addr+1)) << 8
+		lo = uint16(mem.Fetch(addr))
+		hi = uint16(mem.Fetch(addr+1)) << 8
 	)
 	return lo | hi
 }
 
-// FetchWordBug is a helper to fetch a 16-bit word from a bus
-func FetchWordBug(bus AddressBus, addr uint16) uint16 {
+// FetchWordBug is a helper to fetch a 16-bit word from memory
+func FetchWordBug(mem memory.Memory, addr uint16) uint16 {
 	var (
-		lo = uint16(bus.Fetch(addr))
-		hi = uint16(bus.Fetch(addr&0xff00)) | uint16(uint8(addr+1))<<8
+		lo = uint16(mem.Fetch(addr))
+		hi = uint16(mem.Fetch(addr&0xff00)) | uint16(uint8(addr+1))<<8
 	)
 	return lo | hi
 }
 
 // StoreWord is a helper to store a 16-bit word on a bus
-func StoreWord(bus AddressBus, addr, value uint16) {
-	bus.Store(addr+0, uint8(value))
-	bus.Store(addr+1, uint8(value>>8))
+func StoreWord(mem memory.Memory, addr, value uint16) {
+	mem.Store(addr+0, uint8(value))
+	mem.Store(addr+1, uint8(value>>8))
 }

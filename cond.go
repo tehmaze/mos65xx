@@ -13,7 +13,7 @@ const (
 
 // cond is a condition checker for our test harness
 type cond interface {
-	Cond(CPU, Instruction) bool
+	Cond(Instruction) bool
 	String() string
 }
 
@@ -26,7 +26,7 @@ type conds struct {
 	met, not []cond
 }
 
-func (t *conds) Cond(cpu CPU, in Instruction) bool {
+func (t *conds) Cond(in Instruction) bool {
 	// Each test restes the conditions
 	t.res = make([]bool, len(t.Conds))
 	t.met = make([]cond, 0, len(t.Conds))
@@ -34,7 +34,7 @@ func (t *conds) Cond(cpu CPU, in Instruction) bool {
 
 	// Check conditions
 	for i, c := range t.Conds {
-		if t.res[i] = c.Cond(cpu, in); t.res[i] {
+		if t.res[i] = c.Cond(in); t.res[i] {
 			t.met = append(t.met, c)
 		} else {
 			t.not = append(t.not, c)
@@ -88,23 +88,23 @@ type (
 	condY  uint8
 )
 
-func (t condPC) Cond(cpu CPU, _ Instruction) bool { return cpu.Registers().PC == uint16(t) }
-func (t condPC) String() string                   { return fmt.Sprintf("PC     %s $%04X", condEqual, uint16(t)) }
-func (t condP) Cond(cpu CPU, _ Instruction) bool  { return cpu.Registers().P == uint8(t) }
-func (t condP) String() string                    { return fmt.Sprintf("P      %s $%02X", condEqual, uint8(t)) }
-func (t condS) Cond(cpu CPU, _ Instruction) bool  { return cpu.Registers().S == uint8(t) }
-func (t condS) String() string                    { return fmt.Sprintf("S      %s $%02X", condEqual, uint8(t)) }
-func (t condA) Cond(cpu CPU, _ Instruction) bool  { return cpu.Registers().A == uint8(t) }
-func (t condA) String() string                    { return fmt.Sprintf("A      %s $%02X", condEqual, uint8(t)) }
-func (t condX) Cond(cpu CPU, _ Instruction) bool  { return cpu.Registers().X == uint8(t) }
-func (t condX) String() string                    { return fmt.Sprintf("X      %s $%02X", condEqual, uint8(t)) }
-func (t condY) Cond(cpu CPU, _ Instruction) bool  { return cpu.Registers().Y == uint8(t) }
-func (t condY) String() string                    { return fmt.Sprintf("Y      %s $%02X", condEqual, uint8(t)) }
+func (t condPC) Cond(in Instruction) bool { return in.CPU.Registers().PC == uint16(t) }
+func (t condPC) String() string           { return fmt.Sprintf("PC     %s $%04X", condEqual, uint16(t)) }
+func (t condP) Cond(in Instruction) bool  { return in.CPU.Registers().P == uint8(t) }
+func (t condP) String() string            { return fmt.Sprintf("P      %s $%02X", condEqual, uint8(t)) }
+func (t condS) Cond(in Instruction) bool  { return in.CPU.Registers().S == uint8(t) }
+func (t condS) String() string            { return fmt.Sprintf("S      %s $%02X", condEqual, uint8(t)) }
+func (t condA) Cond(in Instruction) bool  { return in.CPU.Registers().A == uint8(t) }
+func (t condA) String() string            { return fmt.Sprintf("A      %s $%02X", condEqual, uint8(t)) }
+func (t condX) Cond(in Instruction) bool  { return in.CPU.Registers().X == uint8(t) }
+func (t condX) String() string            { return fmt.Sprintf("X      %s $%02X", condEqual, uint8(t)) }
+func (t condY) Cond(in Instruction) bool  { return in.CPU.Registers().Y == uint8(t) }
+func (t condY) String() string            { return fmt.Sprintf("Y      %s $%02X", condEqual, uint8(t)) }
 
 // condCycles are conditional cycle boundaries
 type condCycles [2]int
 
-func (t condCycles) Cond(_ CPU, in Instruction) bool {
+func (t condCycles) Cond(in Instruction) bool {
 	if t[0] == t[1] || t[1] < t[0] {
 		return in.Cycles >= t[0]
 	}
@@ -120,7 +120,7 @@ func (t condCycles) String() string {
 // condOp is a condition for hitting a mnemonic
 type condOp Mnemonic
 
-func (t condOp) Cond(_ CPU, in Instruction) bool {
+func (t condOp) Cond(in Instruction) bool {
 	return in.Mnemonic == Mnemonic(t)
 }
 
@@ -134,8 +134,8 @@ type condByte struct {
 	Value uint8  // Value for comparison
 }
 
-func (t condByte) Cond(cpu CPU, _ Instruction) bool {
-	return cpu.Fetch(t.Addr) == t.Value
+func (t condByte) Cond(in Instruction) bool {
+	return in.CPU.Fetch(t.Addr) == t.Value
 }
 
 func (t condByte) String() string {
@@ -145,12 +145,12 @@ func (t condByte) String() string {
 // contTrap is a condition for looping jumps
 type condTrap struct{}
 
-func (t condTrap) Cond(cpu CPU, in Instruction) bool {
+func (t condTrap) Cond(in Instruction) bool {
 	switch in.Mnemonic {
 	case JMP, JSR:
-		addr := in.Addr(cpu)
+		addr := in.Addr()
 		if in.AddressMode == Indirect {
-			addr = FetchWord(cpu, addr)
+			addr = FetchWord(in.CPU, addr)
 		}
 		return in.Registers.PC == addr
 	default:

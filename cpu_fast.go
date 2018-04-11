@@ -4,14 +4,16 @@ import (
 	"fmt"
 	"io"
 	"math"
+
+	"github.com/tehmaze/mos65xx/memory"
 )
 
 // fast CPU variant is not timing accurate, but optimized for execution speed
 type fast struct {
 	reg     *Registers
-	bus     AddressBus // External memory
-	ram     *RAM       // Internal memory
-	ramSize uint32
+	bus     memory.Memory // External memory
+	ram     *memory.RAM   // Internal memory
+	ramSize int
 	ramMask uint16
 
 	// https://hashrocket.com/blog/posts/switch-vs-map-which-is-the-better-way-to-branch-in-go
@@ -32,10 +34,10 @@ type fast struct {
 }
 
 // New creates a new CPU for the specified model
-func New(model Model, bus AddressBus) CPU {
+func New(model Model, mem memory.Memory) CPU {
 	cpu := &fast{
 		reg:      new(Registers),
-		bus:      bus,
+		bus:      mem,
 		ramSize:  model.InternalMemory,
 		ramMask:  uint16(model.InternalMemory - 1),
 		hasBCD:   model.HasBCD,
@@ -45,7 +47,7 @@ func New(model Model, bus AddressBus) CPU {
 	}
 
 	if cpu.ramSize > 0 {
-		cpu.ram = NewRAM(cpu.ramSize)
+		cpu.ram = memory.New(int(cpu.ramSize)).Reset(0xff)
 	}
 
 	cpu.ops = [mnemonics]func(uint16){
@@ -133,7 +135,7 @@ func New(model Model, bus AddressBus) CPU {
 
 // Fetch a byte from RAM or the address bus
 func (cpu *fast) Fetch(addr uint16) uint8 {
-	if cpu.ramSize > 0 && uint32(addr) < cpu.ramSize {
+	if cpu.ramSize > 0 && int(addr) < cpu.ramSize {
 		return cpu.ram.Fetch(addr)
 	}
 	return cpu.bus.Fetch(addr)
@@ -141,7 +143,7 @@ func (cpu *fast) Fetch(addr uint16) uint8 {
 
 // Store a byte in RAM or the address bus
 func (cpu *fast) Store(addr uint16, value uint8) {
-	if cpu.ramSize > 0 && uint32(addr) < cpu.ramSize {
+	if cpu.ramSize > 0 && int(addr) < cpu.ramSize {
 		cpu.ram.Store(addr, value)
 	} else {
 		cpu.bus.Store(addr, value)
@@ -154,14 +156,20 @@ func (cpu *fast) ReadAt(p []byte, offs int64) (n int, err error) {
 		err = io.EOF
 	} else {
 		l := len(p)
-		if cpu.ramSize > 0 && uint32(offs) < cpu.ramSize {
-			n, _ = cpu.ram.ReadAt(p, offs)
+		if cpu.ramSize > 0 && int(offs) < cpu.ramSize {
+			n = copy(p, (*cpu.ram)[offs:])
 			l -= n
 		}
 		if l > 0 {
 			// Read remainder from external RAM
-			var m int
-			if m, err = cpu.bus.ReadAt(p[n:], offs+int64(n)); err == nil {
+			var (
+				r, ok = cpu.bus.(io.ReaderAt)
+				m     int
+			)
+			if !ok {
+				r = memory.ReaderAt{cpu.bus}
+			}
+			if m, err = r.ReadAt(p[n:], offs+int64(n)); err == nil {
 				n += m
 			}
 		}
@@ -266,7 +274,6 @@ func (cpu *fast) Step() int {
 		if !cpu.monitor.BeforeExecute(cpu, Instruction{
 			CPU:         cpu,
 			Cycles:      cpu.cycles,
-			AddressBus:  cpu,
 			Mnemonic:    opcode.Mnemonic,
 			Registers:   *cpu.reg,
 			AddressMode: opcode.Mode,
@@ -877,6 +884,6 @@ func (cpu *fast) xaa(addr uint16) {
 
 // Interface checks
 var (
-	_ CPU        = (*fast)(nil)
-	_ AddressBus = (*fast)(nil)
+	_ CPU           = (*fast)(nil)
+	_ memory.Memory = (*fast)(nil)
 )

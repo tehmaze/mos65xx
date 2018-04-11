@@ -1,11 +1,12 @@
 package mos65xx
 
 import "fmt"
+import "github.com/tehmaze/mos65xx/memory"
 
 // CPU represents a MOS Technology 65xx Central Processing Unit
 type CPU interface {
-	// AddressBus as observed by the CPU
-	AddressBus
+	// Memory as observed by the CPU
+	memory.Memory
 
 	// Registers returns a pointer to the CPU registers
 	Registers() *Registers
