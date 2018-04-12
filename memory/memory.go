@@ -1,9 +1,22 @@
 // Package memory implements access to 16-bit address space.
 package memory
 
-import "io/ioutil"
+import (
+	"fmt"
+	"io/ioutil"
+)
 
 const zeroBlockSize = 128
+
+// Blank memory always returns the same value
+type Blank uint8
+
+func (mem Blank) Fetch(_ uint16) uint8 { return uint8(mem) }
+func (Blank) Store(_ uint16, _ uint8)  {}
+
+func (mem Blank) String() string {
+	return fmt.Sprintf("%#02x", uint8(mem))
+}
 
 // RAM is Rendom Access Memory.
 type RAM []uint8
@@ -36,6 +49,10 @@ func (mem *RAM) Reset(zero uint8) *RAM {
 	return mem
 }
 
+func (mem RAM) String() string {
+	return fmt.Sprintf("%s RAM", sizeOf(len(mem)))
+}
+
 // ROM is Read-Only Memory.
 type ROM []uint8
 
@@ -55,6 +72,19 @@ func (mem ROM) Fetch(addr uint16) uint8 {
 
 // Store is a no-op.
 func (ROM) Store(_ uint16, _ uint8) {}
+
+func (mem ROM) String() string {
+	return fmt.Sprintf("%s ROM", sizeOf(len(mem)))
+}
+
+func sizeOf(l int) string {
+	switch {
+	case l >= 8192:
+		return fmt.Sprintf("%dkB", l>>10)
+	default:
+		return fmt.Sprintf("%dB", l)
+	}
+}
 
 // Interface checks
 var (

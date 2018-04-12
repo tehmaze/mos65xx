@@ -1,6 +1,10 @@
 package memory
 
-import "sort"
+import (
+	"fmt"
+	"sort"
+	"strings"
+)
 
 // Mapper for bank switched memory access.
 type Mapper struct {
@@ -33,11 +37,11 @@ func (m Mapper) Store(addr uint16, value uint8) {
 
 // Map memory starting at addr; the memory implementation is expected to do
 // the address translation for the specified addr.
-func (m *Mapper) Map(addr, size uint16, memory Memory) {
+func (m *Mapper) Map(addr, stop uint16, memory Memory) {
 	m.mapped = append(m.mapped, memoryRange{
 		Memory: memory,
 		addr:   addr,
-		stop:   addr + size,
+		stop:   stop,
 	})
 	m.mapped.Sort()
 }
@@ -54,24 +58,62 @@ func (m *Mapper) Unmap(memory Memory) (found bool) {
 	return
 }
 
+// Reset the mappings
+func (m *Mapper) Reset() *Mapper {
+	m.mapped = m.mapped[:0]
+	return m
+}
+
+func (m Mapper) String() string {
+	return fmt.Sprintf("Mapper{%s}", m.mapped)
+}
+
 type memoryRange struct {
 	Memory
 	addr, stop uint16
 }
 
+func (r memoryRange) String() string {
+	return fmt.Sprintf("$%04X-$%04X: %v", r.addr, r.stop, r.Memory)
+}
+
 // memoryRanges are 0-n (non-contiguous) memory ranges
 type memoryRanges []memoryRange
 
-func (r memoryRanges) Len() int           { return len(r) }
-func (r memoryRanges) Less(i, j int) bool { return r[i].addr < r[j].addr }
-func (r memoryRanges) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
-func (r memoryRanges) Sort()              { sort.Stable(r) }
+func (r memoryRanges) Len() int {
+	return len(r)
+}
+
+func (r memoryRanges) Less(i, j int) bool {
+	if r[j].addr >= r[i].addr && r[j].stop <= r[i].stop {
+		// If j is contained in i, return false; the smaller area takes precdence
+		return false
+	}
+	return r[i].addr < r[j].addr
+}
+
+func (r memoryRanges) Swap(i, j int) {
+	r[i], r[j] = r[j], r[i]
+}
+
+func (r memoryRanges) Sort() {
+	sort.Stable(r)
+}
+
+func (r memoryRanges) String() string {
+	s := make([]string, len(r))
+	for i, m := range r {
+		s[i] = m.String()
+	}
+	return strings.Join(s, ", ")
+}
+
 func (r memoryRanges) Bank(addr uint16) Memory {
 	l := len(r)
 	if i := sort.Search(l, func(i int) bool {
-		return addr < r[i].stop
+		return addr <= r[i].stop
 	}); i < l {
-		if it := r[i]; addr >= it.addr && addr < it.stop {
+		if it := r[i]; addr >= it.addr && addr <= it.stop {
 			return it
 		}
 	}

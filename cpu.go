@@ -1,8 +1,11 @@
 // Package mos65xx implements MOS Technology 65xx CPU emulation.
 package mos65xx
 
-import "fmt"
-import "github.com/tehmaze/mos65xx/memory"
+import (
+	"fmt"
+
+	"github.com/tehmaze/mos65xx/memory"
+)
 
 // CPU represents a MOS Technology 65xx Central Processing Unit
 type CPU interface {
@@ -76,11 +79,6 @@ func (reg *Registers) setZN(value uint8) {
 
 // cmp compares two values and updates the Z, N and C flags accordingly
 func (reg *Registers) cmp(a, b uint8) {
-	/*
-		log.Printf("cpu: CMP %02x <> %02X z:%t n:%t c:%t",
-			a, b, (a-b) == 0, (a-b)&0x80 != 0, a >= b)
-	*/
-
 	reg.P = setFlag(reg.P, C, a >= b)
 	reg.P = setFlag(reg.P, Z, a == b)
 	reg.P = setFlag(reg.P, N, (a-b)&0x80 == 0x80)
